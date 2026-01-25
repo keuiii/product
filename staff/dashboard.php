@@ -27,8 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
         $quantity = intval($_POST['quantity']);
 
         $stmt = $conn->prepare("INSERT INTO products (product_name, description, price, quantity, created_by) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssdi", $product_name, $description, $price, $quantity, $user_id);
-        
+        $stmt->bind_param("ssdii", $product_name, $description, $price, $quantity, $user_id);        
         if ($stmt->execute()) {
             $message = "Product added successfully!";
             $message_type = "success";
