@@ -1,0 +1,8 @@
+{
+    "name": "eshop/product",
+    "description": "E-Commerce Security System",
+    "type": "project",
+    "require": {
+        "php": ">=7.4"
+    }
+}
