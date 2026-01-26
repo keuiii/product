@@ -101,15 +101,17 @@ if ($is_logged_in && $user_role === 'regular_user') {
         .header-links a:hover { color: #0056b3; }
         
         .cart-link { 
-            display: flex; 
-            align-items: center; 
-            gap: 5px;
-            background: #28a745;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 4px;
-            text-decoration: none;
+        display: flex; 
+        align-items: center; 
+        gap: 6px;
+        background: #28a745;
+        color: #ffffff !important;
+        padding: 8px 15px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
         }
+
         .cart-badge { 
             background: #dc3545;
             color: white;
@@ -122,10 +124,25 @@ if ($is_logged_in && $user_role === 'regular_user') {
             font-size: 12px;
             font-weight: bold;
         }
+
         .cart-link:hover { background: #218838; }
-        
-        .logout-btn { background: #dc3545; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
-        .logout-btn:hover { background: #c82333; }
+
+        .logout-btn { 
+            background: #6c757d; 
+            color: #ffffff !important; 
+            padding: 8px 12px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .logout-btn:hover { background: #5a6268; }
+        .logout-btn svg { display: block; }
         
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         
@@ -218,7 +235,13 @@ if ($is_logged_in && $user_role === 'regular_user') {
                             <?php endif; ?>
                         </a>
                     <?php endif; ?>
-                    <a href="../shared/logout.php" class="logout-btn">Logout</a>
+                    <a href="../shared/logout.php" class="logout-btn" title="Logout">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </a>
                 <?php else: ?>
                     <a href="index.php">Register</a>
                     <a href="login.php">Login</a>

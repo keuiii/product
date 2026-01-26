@@ -127,12 +127,20 @@ $res = $conn->query($query);
         }
 
         .btn-danger {
-            background: var(--danger);
+            background: #6c757d;
             color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-danger:hover {
-            background: #b91f1f;
+            background: #5a6268;
+        }
+
+        .btn-danger svg {
+            display: block;
+            stroke: white;
         }
 
         .user-info {
@@ -314,7 +322,13 @@ $res = $conn->query($query);
             </div>
             <div class="header-nav">
                 <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
-                <a href="../shared/logout.php" class="btn btn-danger">Logout</a>
+                <a href="../shared/logout.php" class="btn btn-danger" title="Logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </a>
             </div>
         </div>
 

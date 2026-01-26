@@ -1,84 +1,110 @@
-﻿<?php
+<?php
 session_start();
 include "database.php";
 
 $message = "";
 $message_type = "";
+$token_valid = false;
+$token = "";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = trim($_POST["username"]);
-    $password = trim($_POST["password"]);
-
-    // Check if user exists
-    $stmt = $conn->prepare("SELECT id, username, password, role, is_locked, locked_until, failed_login_attempts FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
+// Check if token is provided
+if (isset($_GET['token'])) {
+    $token = $_GET['token'];
+    
+    // Verify token
+    $stmt = $conn->prepare("SELECT pr.id, pr.user_id, pr.expires_at, pr.used, u.username, u.email 
+                            FROM password_resets pr 
+                            JOIN users u ON pr.user_id = u.id 
+                            WHERE pr.token = ?");
+    $stmt->bind_param("s", $token);
     $stmt->execute();
     $result = $stmt->get_result();
-
+    
     if ($result->num_rows === 1) {
-        $user = $result->fetch_assoc();
-        $user_id = $user["id"];
-
-        // Check if account is locked
-        if ($user['is_locked']) {
-            if (time() > strtotime($user['locked_until'])) {
-                // Lock has expired, reset it
-                unlockAccount($conn, $user_id);
-            } else {
-                // Account is still locked
-                $remaining_time = ceil((strtotime($user['locked_until']) - time()) / 60);
-                $message = "Account is locked due to multiple failed login attempts. Please try again in " . $remaining_time . " minutes.";
-                $message_type = "error";
-            }
-        }
-
-        // If account is not locked, verify password
-        if (empty($message)) {
-            if (password_verify($password, $user["password"])) {
-                // Login successful, reset failed attempts
-                resetFailedAttempts($conn, $user_id);
-                
-                $_SESSION["user_id"] = $user_id;
-                $_SESSION["username"] = $user["username"];
-                $_SESSION["role"] = $user["role"];
-                
-                logAudit($conn, $user_id, $user["username"], "LOGIN", "User logged in successfully");
-                
-                // Redirect based on role
-                if ($user["role"] === "admin_sec") {
-                    header("Location: ../admin/dashboard.php");
-                } elseif ($user["role"] === "staff_user") {
-                    header("Location: ../staff/dashboard.php");
-                } elseif ($user["role"] === "regular_user") {
-                    header("Location: ../guest/shop.php");
-                } else {
-                    header("Location: ../guest/shop.php");
-                }
-                exit;
-            } else {
-                // Incorrect password
-                $account_locked = incrementFailedAttempts($conn, $user_id);
-                
-                $stmt = $conn->prepare("SELECT failed_login_attempts FROM users WHERE id = ?");
-                $stmt->bind_param("i", $user_id);
-                $stmt->execute();
-                $attempts_result = $stmt->get_result()->fetch_assoc();
-                $attempts = $attempts_result['failed_login_attempts'];
-
-                if ($account_locked) {
-                    $message = "Account locked due to " . MAX_LOGIN_ATTEMPTS . " failed login attempts. Please try again in 15 minutes.";
-                    logAudit($conn, $user_id, $username, "LOGIN_FAILED", "Account locked after " . MAX_LOGIN_ATTEMPTS . " failed attempts");
-                } else {
-                    $remaining_attempts = MAX_LOGIN_ATTEMPTS - $attempts;
-                    $message = "Incorrect password! You have " . $remaining_attempts . " attempt(s) remaining.";
-                    logAudit($conn, $user_id, $username, "LOGIN_FAILED", "Failed login attempt (" . $attempts . "/" . MAX_LOGIN_ATTEMPTS . ")");
-                }
-                $message_type = "error";
-            }
+        $reset = $result->fetch_assoc();
+        
+        // Check if token is expired
+        if (time() > strtotime($reset['expires_at'])) {
+            $message = "This password reset link has expired. Please request a new one.";
+            $message_type = "error";
+        } elseif ($reset['used'] == 1) {
+            $message = "This password reset link has already been used. Please request a new one.";
+            $message_type = "error";
+        } else {
+            $token_valid = true;
         }
     } else {
-        $message = "User not found!";
+        $message = "Invalid password reset link.";
         $message_type = "error";
+    }
+} else {
+    $message = "No reset token provided.";
+    $message_type = "error";
+}
+
+// Handle password reset form submission
+if ($_SERVER["REQUEST_METHOD"] === "POST" && $token_valid) {
+    $new_password = trim($_POST["new_password"]);
+    $confirm_password = trim($_POST["confirm_password"]);
+    
+    // Validate passwords
+    if (empty($new_password) || empty($confirm_password)) {
+        $message = "All fields are required.";
+        $message_type = "error";
+    } elseif ($new_password !== $confirm_password) {
+        $message = "Passwords do not match.";
+        $message_type = "error";
+    } elseif (strlen($new_password) < 8) {
+        $message = "Password must be at least 8 characters long.";
+        $message_type = "error";
+    } else {
+        // Update password
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+        
+        $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmt->bind_param("si", $hashed_password, $reset['user_id']);
+        
+        if ($stmt->execute()) {
+            // Mark token as used
+            $stmt = $conn->prepare("UPDATE password_resets SET used = 1 WHERE token = ?");
+            $stmt->bind_param("s", $token);
+            $stmt->execute();
+            
+            // Reset failed login attempts
+            resetFailedAttempts($conn, $reset['user_id']);
+            
+            // Log the action
+            logAudit($conn, $reset['user_id'], $reset['username'], "PASSWORD_RESET", "Password reset completed successfully");
+            
+            // Send confirmation email
+            $subject = "Password Changed Successfully - E-Shop";
+            $body = "
+            <html>
+            <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+                <div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                    <h2 style='color: #2a9d8f;'>Password Changed Successfully</h2>
+                    <p>Hello <strong>{$reset['username']}</strong>,</p>
+                    <p>Your password has been successfully changed.</p>
+                    <p>If you did not make this change, please contact support immediately.</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='http://{$_SERVER['HTTP_HOST']}" . dirname($_SERVER['PHP_SELF']) . "/login.php' style='background-color: #2d6cdf; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;'>Login to Your Account</a>
+                    </div>
+                    <hr style='margin: 20px 0; border: none; border-top: 1px solid #ddd;'>
+                    <p style='font-size: 12px; color: #666;'>This is an automated message from E-Shop. Please do not reply to this email.</p>
+                </div>
+            </body>
+            </html>
+            ";
+            
+            sendEmail($reset['email'], $subject, $body);
+            
+            $message = "Your password has been reset successfully! You can now login with your new password.";
+            $message_type = "success";
+            $token_valid = false; // Prevent form from showing again
+        } else {
+            $message = "Failed to reset password. Please try again.";
+            $message_type = "error";
+        }
     }
 }
 ?>
@@ -88,7 +114,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - E-Shop</title>
+    <title>Reset Password - E-Shop</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
 
@@ -160,7 +186,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             gap: 0.7rem;
         }
 
-        input[type="text"],
         input[type="password"] {
             width: 100%;
             padding: 12px;
@@ -277,19 +302,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             color: var(--primary);
         }
 
-        .help-text {
+        .password-requirements {
             font-size: 12px;
             color: #666;
-            text-align: center;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
+            padding-left: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">🛒</div>
-        <h2>Login</h2>
-        <p class="subtitle">Sign in to your account to continue shopping</p>
+        <div class="logo">🔑</div>
+        <h2>Reset Password</h2>
+        <p class="subtitle">Enter your new password below</p>
 
         <?php if (!empty($message)): ?>
             <div class="message <?= $message_type ?>">
@@ -297,14 +322,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
         <?php endif; ?>
 
+        <?php if ($token_valid && $message_type !== "success"): ?>
         <form method="POST">
-            <label style="font-weight: 500; margin-bottom: 5px; display: block;">Username:</label>
-            <input type="text" name="username" placeholder="Enter your username" required autofocus>
-
-            <label style="font-weight: 500; margin-bottom: 5px; display: block; margin-top: 10px;">Password:</label>
+            <label style="font-weight: 500; margin-bottom: 5px; display: block;">New Password:</label>
             <div class="password-field">
-                <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                <input type="password" id="new_password" name="new_password" placeholder="Enter new password" required>
+                <button type="button" class="password-toggle" onclick="togglePassword('new_password', this)">
+                    <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-closed-icon" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="password-requirements">
+                Must be at least 8 characters long
+            </div>
+
+            <label style="font-weight: 500; margin-bottom: 5px; display: block; margin-top: 10px;">Confirm Password:</label>
+            <div class="password-field">
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password" required>
+                <button type="button" class="password-toggle" onclick="togglePassword('confirm_password', this)">
                     <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
@@ -316,22 +357,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </button>
             </div>
 
-            <button type="submit">Login</button>
+            <button type="submit">Reset Password</button>
         </form>
+        <?php endif; ?>
 
         <div class="auth-link">
-            <a href="forgot_password.php">Forgot Password?</a>
-        </div>
-
-        <div class="auth-link">
-            Don't have an account? <a href="index.php">Register here</a>
+            <a href="login.php">Back to Login</a>
         </div>
     </div>
 
     <script>
-        function togglePassword(fieldId) {
+        function togglePassword(fieldId, button) {
             const field = document.getElementById(fieldId);
-            const button = event.target.closest('.password-toggle');
             const eyeIcon = button.querySelector('.eye-icon');
             const eyeClosedIcon = button.querySelector('.eye-closed-icon');
             
@@ -348,5 +385,3 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     </script>
 </body>
 </html>
-
-

@@ -273,8 +273,9 @@ $stats = [
         .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
         .header h1 { color: #333; }
         .user-info { color: #666; }
-        .logout-btn { background: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
-        .logout-btn:hover { background: #c82333; }
+        .logout-btn { background: #6c757d; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .logout-btn:hover { background: #5a6268; }
+        .logout-btn svg { display: block; }
         
         .message { padding: 15px; margin-bottom: 20px; border-radius: 4px; }
         .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -353,7 +354,13 @@ $stats = [
             <h1>Admin Dashboard</h1>
             <div class="user-info">
                 Logged in as: <strong><?= htmlspecialchars($username) ?></strong> (Admin)
-                <a href="../shared/logout.php" class="logout-btn">Logout</a>
+                <a href="../shared/logout.php" class="logout-btn" title="Logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </a>
                 <a href="audit_trail.php" style="margin-left: 10px; background: #17a2b8; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">View Audit Trail</a>
             </div>
         </div>
@@ -402,6 +409,7 @@ $stats = [
                 <div class="form-group">
                     <label>Role:</label>
                     <select name="new_role" required>
+                        <option value="admin_sec">Admin (Full Access)</option>
                         <option value="staff_user">Staff User</option>
                         <option value="regular_user">Regular User</option>
                         <option value="guest_user">Guest User</option>

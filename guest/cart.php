@@ -183,10 +183,13 @@ $cart_items->data_seek(0); // Reset result pointer
         .header-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
         .logo { font-size: 24px; font-weight: bold; color: #333; }
         
-        .header-links { display: flex; gap: 15px; }
+        .header-links { display: flex; gap: 15px; align-items: center; }
         .header-links a { text-decoration: none; color: #007bff; }
-        .logout-btn { background: #dc3545; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
-        .logout-btn:hover { background: #c82333; }
+        .btn-continue { background: #007bff; color: white !important; padding: 8px 16px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; font-weight: 500; transition: background 0.2s; }
+        .btn-continue:hover { background: #0056b3; }
+        .logout-btn { background: #6c757d; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .logout-btn:hover { background: #5a6268; }
+        .logout-btn svg { display: block; stroke: white; }
         
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         
@@ -253,8 +256,14 @@ $cart_items->data_seek(0); // Reset result pointer
         <div class="header-content">
             <div class="logo">🛒 E-Shop</div>
             <div class="header-links">
-                <a href="shop.php">Continue Shopping</a>
-                <a href="../shared/logout.php" class="logout-btn">Logout</a>
+                <a href="shop.php" class="btn-continue">← Continue Shopping</a>
+                <a href="../shared/logout.php" class="logout-btn" title="Logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </a>
             </div>
         </div>
     </header>
